@@ -1,0 +1,45 @@
+services:
+  stablediff-rocm:
+    build: 
+      context: .
+      dockerfile: Dockerfile.rocm
+    container_name: comfyui-rocm
+    environment:
+      TZ: "America/Edmonton"
+#      ROC_ENABLE_PRE_VEGA: 1
+#      HIP_VISIBLE_DEVICES: 0
+#      ROCR_VISIBLE_DEVICES: 0
+      HSA_OVERRIDE_GFX_VERSION: 10.3.0
+      COMMANDLINE_ARGS: "--listen"
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "rocm-smi; . /comfyui.env; echo launch.py $$COMMANDLINE_ARGS;
+      if [ ! -d /comfyui/.git ]; then
+        cp -a /comfytemp/. /comfyui/
+      fi;
+      if [ ! -f /comfyui/custom_nodes/* ]; then
+        cp -a -r  /comfytemp/custom_nodes/* /comfyui/custom_nodes/
+      fi;
+      if [ ! -f /comfyui/models/* ]; then
+        cp -a -r  /comfytemp/models/* /comfyui/models/
+      fi;
+      python main.py --listen 0.0.0.0"
+    ports:
+      - "8188:8188"
+    devices:
+      - "/dev/kfd:/dev/kfd"
+      - "/dev/dri:/dev/dri"
+    group_add:
+      - video
+    ipc: host
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - ./comfyui.env:/comfyui.env
+      - ./comfyui:/comfyui
+      - ./custom_nodes:/comfyui/custom_nodes
+      - ../models:/comfyui/models
+      - ./output:/comfyui/output
+    restart: unless-stopped
